@@ -53,11 +53,6 @@ $env:GCC5_AARCH64_PREFIX = $ccprefix
 
 Write-Output "Use GCC at $($ccprefix) to run builds."
 
-# Probe iASL
-$iaslpath = Get-AcpiToolsPath
-if ($null -eq $iaslpath) { return -1 }
-Write-Output "Use iASL at $($iaslpath) to compile SSDTs."
-
 # Build base tools if not exist (dev).
 if (((Test-Path -Path "BaseTools") -eq $false) -or ($Clean -eq $true))
 {
@@ -94,9 +89,9 @@ Write-Output "Stamp build."
 # This one is EDK2 base commit
 $edk2Commit = git rev-parse HEAD
 # This is Lumia950XLPkg package commit
-Set-Location Lumia950XLPkg
+cd Lumia950XLPkg
 $commit = git rev-parse HEAD
-Set-Location ..
+cd ..
 $date = (Get-Date).Date.ToString("MM/dd/yyyy")
 $user = (whoami)
 $machine = [System.Net.Dns]::GetHostByName((hostname)).HostName
@@ -131,31 +126,6 @@ if ($commit)
 	)
 
 	Set-Content -Path Lumia950XLPkg/Include/Resources/ReleaseInfo.h -Value $releaseInfoContent -ErrorAction SilentlyContinue -Force
-}
-
-# Build SSDT tables
-# Because this is quick enough, we build for any possible platforms
-$ssdts = Get-ChildItem Lumia950XLPkg/AcpiTables/**/src/SSDT*.asl
-if ($null -ne $ssdts)
-{
-	foreach ($ssdt in $ssdts)
-	{
-		Write-Output "Build $($ssdt)."
-		$srcDir = [System.IO.Path]::GetDirectoryName($ssdt)
-		$fileName = [System.IO.Path]::GetFileNameWithoutExtension($ssdt)
-		$outDir = "$($srcDir)/../generated"
-		if (!(Test-Path -Path $outDir))
-		{
-			New-Item -ItemType Directory -Force -Path $outDir
-		}
-
-		. $iaslpath -p "$($outDir)/$($fileName).aml" $ssdt
-		if (-not $?)
-		{
-			Write-Error "Build SSDT $($ssdt) failed."
-			return $?
-		}
-	}
 }
 
 foreach ($target in $availableTargets)
